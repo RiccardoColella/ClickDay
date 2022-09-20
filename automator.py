@@ -6,6 +6,7 @@ import re
 import json
 import time
 import datetime
+import random
 
 f = open("secret.json")
 secret_data = json.load(f)
@@ -23,6 +24,10 @@ def routine(iteration=-1):
     # Till the button "reload" is present: reload
     while driver.find_element(By.XPATH, '//*[@id="invia-btn"]').is_displayed():
         driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()
+
+    # Timeout to pretend to have human-like results
+    timeout = random.randint(5, 25)
+    time.sleep(timeout)
 
     # First drop-down menu
     select = Select(driver.find_element(By.XPATH, '//*[@id="tipo-bando"]'))
@@ -125,7 +130,7 @@ def routine(iteration=-1):
 
     # result
     result = driver.find_element(By.XPATH, '/html/body/div/div[2]/p[2]/strong').text
-    print("Iteration " + str(iteration) + " - Time employed: " + str(result))
+    print("Iteration " + str(iteration) + " - Time employed: " + str(result) + " - employing a timeout of seconds: " + str(timeout))
     time.sleep(4)
     # New simulation
     driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()
