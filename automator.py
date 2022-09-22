@@ -1,19 +1,21 @@
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
-import re
 import json
 import time
-import datetime
 import random
 
 f = open("secret.json")
 secret_data = json.load(f)
 
-driver = webdriver.Chrome()
+options = webdriver.ChromeOptions()
+options.add_experimental_option('excludeSwitches', ['enable-logging'])
+driver = webdriver.Chrome(options=options)
+
+#########
+# LOGIN #
+#########
 driver.get(secret_data['login_page'])
-# Login
 driver.find_element(By.ID, 'insert_login').send_keys(secret_data['user'])
 driver.find_element(By.ID, 'insert_pwd').send_keys(secret_data['psw'])
 driver.find_element(By.XPATH, '/html/body/div/div/form/div[3]/input').click()
@@ -21,119 +23,70 @@ driver.get(secret_data['simulator_page'])
 
 
 def routine(iteration=-1):
-    # Till the button "reload" is present: reload
-    while driver.find_element(By.XPATH, '//*[@id="invia-btn"]').is_displayed():
+    ################
+    # LOADING PAGE #
+    ################
+    
+    while driver.find_element(By.XPATH, '//*[@id="invia-btn"]').is_displayed():                 # Till the button "reload" is present: reload
         driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()
-
-    # Timeout to pretend to have human-like results
-    timeout = random.randint(5, 25)
+    
+    
+    #############
+    # MAIN PAGE #
+    #############
+    timeout = random.randint(5, 25)                                                             # Timeout to pretend to have human-like results
     time.sleep(timeout)
 
-    # First drop-down menu
-    select = Select(driver.find_element(By.XPATH, '//*[@id="tipo-bando"]'))
-    select.select_by_value('ISI2020')
+    select = Select(driver.find_element(By.XPATH, '//*[@id="giorno-odierno"]'))                 # 1sr drop-down menu: DAY
+    select.select_by_value('dright')
 
-    # ID code
-    text = driver.find_element(By.XPATH, '//*[@id="input-token-fe"]/label').text
-    code = driver.find_element(By.XPATH, '//*[@id="my-token-fe"]/input').get_property("value")
+    select = Select(driver.find_element(By.XPATH, '//*[@id="mese-odierno"]'))                   # 2nd drop-down menu: MONTH
+    select.select_by_value('mright')
+    
+    select = Select(driver.find_element(By.XPATH, '//*[@id="anno-odierno"]'))                   # 3rd drop-down menu: YEAR
+    select.select_by_value('yright')
+    
+    select = Select(driver.find_element(By.XPATH, '//*[@id="data-momento5"]'))                  # 4th drop-down menu: MOMENTO 5
+    select.select_by_value('12/12/2022')
+    
+    select = Select(driver.find_element(By.XPATH, '//*[@id="nome-utente"]'))                    # 5th drop-down menu: PARTECIPANTE
+    select.select_by_value('MarioRossi')
+    
+    select = Select(driver.find_element(By.XPATH, '//*[@id="caratteri-bando"]'))                # 6th drop-down menu: BNDS
+    option = select.options
+    for index in range(1, len(option)):
+        if option[index].get_attribute("value") != "wrong":
+            select.select_by_index(index)
+            break
 
-    n = int(driver.find_element(By.XPATH, '//*[@id="input-token"]').get_attribute("maxlength"))
-    groups = 1
+    select = Select(driver.find_element(By.XPATH, '//*[@id="caratteri-token"]'))                # 7th drop-down menu: CHECK
+    select.select_by_value('rightToken')
 
-    if re.search("numer", text):
-        base_re = "[a-z]*([0-9]*)[a-z]*"
-    else:
-        base_re = "[0-9]*([a-z]*)[0-9]*"
+    driver.find_element(By.XPATH, '//*[@id="presa-visione-check"]').click()                     # 1st tick
+    driver.find_element(By.XPATH, '//*[@id="no-robot-cb"]').click()                             # 2nd tick
 
-    last = False
+    driver.execute_script('document.getElementById("botDetector").value="not-detected"')        # Set bot-detector to false before sending the form
 
-    if re.search("^\* Inserire gli ultimi [a-z]+ caratteri", text):
-        starting = 64 - n
-        regex = "^\+[\w]{" + str(starting) + "}([\w]{" + str(n) + "})"
-    # Ultime cifre oppure ultime lettere
-    elif re.search("^\* Inserire .+ ultim", text):
-        regex = "^\+[0-9a-z]{30}" + base_re * 30
-        groups = 30
-        last = True
-    # Prime cifre oppure prime lettere
-    elif re.search("^\* Inserire .+ prim", text):
-        regex = "^\+" + base_re * n
-        groups = n
-    # Numero tra parentesi
-    elif re.search("^\* Inserire il numero tra parentesi", text):
-        regex = "tra parentesi \(([0-9]+)\)"
-    # Prime cifre o lettere
-    else:
-        # START REGEX
-        regex = "^\+([\w]{" + str(n) + "})"
+    driver.find_element(By.XPATH, '//*[@id="avanti-btn"]').click()                              # continue
 
-    trial = re.search(regex, code)
-    while not trial:
-        trial = re.search(regex, code)
-        print("WTF!")
-    try:
-        requested_code = ""
-        for i in range(groups):
-            requested_code += re.match(regex, code).group(i+1)
-    except AttributeError:
-        print("Oh noo...")
-        print(text)
-        print("||" + code + "||")
-        print(regex)
-        print("Is match?")
-        print(re.match(regex, code).group())
-        print("has it been match?")
-        requested_code = "REINITIALISED-"
-        for i in range(groups):
-            requested_code += re.match(regex, code).group(i+1)
-        print(requested_code)
-    if last:
-        requested_code = requested_code[-n:]
-    driver.find_element(By.XPATH, '//*[@id="input-token"]').send_keys(requested_code[0:n])
-
-    # Date
-    text = driver.find_element(By.XPATH, '//*[@id="data-odierna-fe"]/label').text
-    data = datetime.date.today()
-    if re.search("^\* Data di domani", text):
-        data += datetime.timedelta(days=1)
-    elif re.search("^\* Data di ieri", text):
-        data -= datetime.timedelta(days=1)
-    data = data.strftime("%d/%m/%Y")
-    driver.find_element(By.XPATH, '//*[@id="data-odierna"]').send_keys(data)
-
-    # Operation
-    try:
-        operation_result = driver.find_element(By.XPATH, '//*[@id="trueResult"]').get_attribute("value")
-        driver.find_element(By.XPATH, '//*[@id="operazione"]').send_keys(operation_result)
-    except NoSuchElementException:
-        print("No operation needed")
-
-    # Second drop-down menu
-    driver.find_element(By.XPATH, '//*[@id="data-momento3"]/option[4]').click()
-
-    # tick
-    driver.find_element(By.XPATH, '//*[@id="presa-visione-check"]').click()
-    driver.find_element(By.XPATH, '//*[@id="no-robot-cb"]').click()
-
-    # Set bot-detector to false before sending the form
-    driver.execute_script('document.getElementById("botDetector").value="not-detected"')
-
-    # continue
-    driver.find_element(By.XPATH, '//*[@id="avanti-btn"]').click()
-
-    # ticks
-    driver.find_element(By.XPATH, '//*[@id="consenso-verifica-cb-fe"]/div/label').click()
-    # Set bot-detector to false before sending the form
-    driver.execute_script('document.getElementById("botDetector").value="not-detected"')
+    
+    #####################
+    # CONFIRMATION PAGE #
+    #####################
+    driver.find_element(By.XPATH, '//*[@id="consenso-verifica-cb-fe"]/div/label').click()       # ticks
+    driver.execute_script('document.getElementById("botDetector").value="not-detected"')        # Set bot-detector to false before sending the form
 
     driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()
 
-    # result
-    result = driver.find_element(By.XPATH, '/html/body/div/div[2]/p[2]/strong').text
+    
+    ###############
+    # RESULT PAGE #
+    ###############
+    result = driver.find_element(By.XPATH, '/html/body/div/div[2]/p[2]/strong').text            # result
     print("Iteration " + str(iteration) + " - Time employed: " + str(result) + " - employing a timeout of seconds: " + str(timeout))
-    time.sleep(4)
-    # New simulation
-    driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()
+    time.sleep(3)
+    
+    driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()                               # New simulation
 
 
 iteration_n = 0
