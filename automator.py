@@ -28,7 +28,7 @@ def routine(iteration=-1):
     ################
     
     while driver.find_element(By.XPATH, '//*[@id="invia-btn"]').is_displayed():                 # Till the button "reload" is present: reload
-        driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click()
+        driver.find_element(By.XPATH, '//*[@id="invia-btn"]').click() 
     
     
     #############
@@ -92,4 +92,12 @@ def routine(iteration=-1):
 iteration_n = 0
 while True:
     iteration_n += 1
-    routine(iteration_n)
+    
+    try:
+        routine(iteration_n)
+    except:
+        print("Error in the page. Probably you found a not considered case... Will try again with another simulation!")
+        iteration_n -= 1
+        driver.find_element(By.XPATH, '//*[@id="logout-btn"]').click()
+        driver.get(secret_data['simulator_page'])
+        
